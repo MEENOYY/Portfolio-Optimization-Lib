@@ -1,0 +1,6 @@
+experiment_prefix = "portfolio_toolkit"
+tracking_uri = "sqlite:///mlflow/mlflow.db"
+backend_store_uri = "sqlite:///mlflow/mlflow.db"
+artifact_root = "mlflow/artifacts"
+host = "127.0.0.1"
+port = 5000
