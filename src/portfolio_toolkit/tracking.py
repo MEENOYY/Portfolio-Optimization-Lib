@@ -1,7 +1,11 @@
 from __future__ import annotations
 
 from contextlib import contextmanager, nullcontext
-import fcntl
+try:
+    import fcntl
+    HAS_FCNTL = True
+except ImportError:
+    HAS_FCNTL = False
 from pathlib import Path
 import tempfile
 
@@ -39,6 +43,9 @@ def _tracking_paths(repo_root: Path) -> tuple[Path, Path]:
 
 @contextmanager
 def _mlflow_lock(repo_root: Path):
+    if not HAS_FCNTL:
+        yield
+        return
     _, lock_path = _tracking_paths(repo_root)
     with lock_path.open("w", encoding="utf-8") as handle:
         fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
