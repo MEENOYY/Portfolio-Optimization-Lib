@@ -8,6 +8,23 @@ This is a compact reference for the public surface most notebook users should re
 
 Load all dataset presets from `configs/datasets.toml`.
 
+### `custom_dataset(tickers, start, end, benchmark="SPY", name=None, cost_bps=10.0) -> DatasetSpec`
+
+Construct a runtime dataset without editing `configs/datasets.toml`.
+
+- `tickers`
+  Tradable universe for the dataset.
+- `start`, `end`
+  Inclusive calendar-date bounds.
+- `benchmark`
+  Benchmark ticker used in downloads and backtests.
+- `name`
+  Optional dataset identifier. If omitted, the toolkit generates a stable `custom_<hash>` identifier.
+- `cost_bps`
+  Flat transaction cost used by the backtest layer.
+
+Runtime datasets use contiguous calendar-date `60/20/20` train/validation/test splits.
+
 ### `get_dataset_spec(dataset_name, repo_root=None) -> DatasetSpec`
 
 Load one dataset preset.
@@ -20,15 +37,15 @@ Load the shared MLflow configuration from `configs/mlflow.toml`. The tracking UR
 
 ### `load_prices(dataset_name, refresh=False, repo_root=None) -> pd.DataFrame`
 
-Download or load cached daily OHLCV prices for the dataset preset.
+Download or load cached daily OHLCV prices for either a preset dataset name or a runtime `DatasetSpec`.
 
 ### `split_dates(dataset_name, repo_root=None) -> dict[str, tuple[pd.Timestamp, pd.Timestamp]]`
 
-Return train, validation, and test boundaries for a dataset preset.
+Return train, validation, and test boundaries for either a preset dataset name or a runtime `DatasetSpec`.
 
 ### `slice_split(frame, dataset_name, split_name, repo_root=None) -> pd.DataFrame`
 
-Slice any dataframe with a `date` column to the requested split window.
+Slice any dataframe with a `date` column to the requested split window for either a preset dataset name or a runtime `DatasetSpec`.
 
 ## Features And Targets
 
@@ -56,7 +73,7 @@ Create a forward realized volatility target such as `forward_realized_vol_5d`.
 
 ### `validate_prices_frame(df, dataset_name=None, repo_root=None) -> pd.DataFrame`
 
-Validate and normalize a price dataframe.
+Validate and normalize a price dataframe. `dataset_name` may be a preset dataset name or a runtime `DatasetSpec`.
 
 ### `validate_feature_frame(df) -> pd.DataFrame`
 
@@ -64,11 +81,11 @@ Validate and normalize a feature dataframe.
 
 ### `validate_prediction_frame(df, dataset_name=None, horizon=None, repo_root=None) -> pd.DataFrame`
 
-Validate and normalize a standardized prediction dataframe.
+Validate and normalize a standardized prediction dataframe. `dataset_name` may be a preset dataset name or a runtime `DatasetSpec`.
 
 ### `validate_weights_frame(df, dataset_name=None, repo_root=None) -> pd.DataFrame`
 
-Validate and normalize a weights dataframe.
+Validate and normalize a weights dataframe. `dataset_name` may be a preset dataset name or a runtime `DatasetSpec`.
 
 ## Contracts
 
@@ -77,6 +94,8 @@ Validate and normalize a weights dataframe.
 Fields:
 
 - `name`
+- `dataset_id`
+- `kind`
 - `tickers`
 - `benchmark_ticker`
 - `start_date`
@@ -148,15 +167,17 @@ Built-in strategies:
 - `inverse_volatility`
 - `momentum_20d`
 
+`dataset_name` may be a preset dataset name or a runtime `DatasetSpec`.
+
 ## Backtesting
 
 ### `backtest_weights(dataset_name, portfolio_weights, benchmark="SPY", repo_root=None) -> BacktestResult`
 
-Backtest a direct `PortfolioWeights` object.
+Backtest a direct `PortfolioWeights` object against either a preset dataset name or a runtime `DatasetSpec`.
 
 ### `backtest_predictions(dataset_name, predictions, builder="top_k_equal", repo_root=None, **builder_kwargs) -> BacktestResult`
 
-Convert predictions into weights with a shared portfolio builder and then backtest them.
+Convert predictions into weights with a shared portfolio builder and then backtest them against either a preset dataset name or a runtime `DatasetSpec`.
 
 Supported builders:
 
@@ -191,6 +212,8 @@ Initialize the local MLflow SQLite database and artifact directory.
 ### `start_run(run_name, dataset_name, tags=None, repo_root=".")`
 
 Start an MLflow run as a context manager.
+
+`dataset_name` may be a preset dataset name or a runtime `DatasetSpec`. Runtime datasets automatically log dataset metadata and a `dataset_spec.json` artifact so runs remain reconstructable.
 
 ### `log_predictions(df) -> None`
 

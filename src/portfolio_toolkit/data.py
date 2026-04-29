@@ -6,7 +6,8 @@ from pathlib import Path
 import pandas as pd
 import yfinance as yf
 
-from .config import get_dataset_spec
+from .config import dataset_identifier, resolve_dataset_spec
+from .contracts import DatasetSpec
 from .validation import validate_prices_frame
 
 
@@ -14,8 +15,8 @@ def _repo_root(repo_root: str | Path | None = None) -> Path:
     return Path("." if repo_root is None else repo_root).resolve()
 
 
-def _cache_path(dataset_name: str, repo_root: str | Path | None = None) -> Path:
-    return _repo_root(repo_root) / "data_cache" / f"{dataset_name}.parquet"
+def _cache_path(dataset_name: str | DatasetSpec, repo_root: str | Path | None = None) -> Path:
+    return _repo_root(repo_root) / "data_cache" / f"{dataset_identifier(dataset_name, repo_root=repo_root)}.parquet"
 
 
 def _normalize_downloaded_frame(frame: pd.DataFrame, ticker: str) -> pd.DataFrame:
@@ -42,12 +43,13 @@ def _normalize_downloaded_frame(frame: pd.DataFrame, ticker: str) -> pd.DataFram
     return normalized
 
 
-def _download_prices_for_dataset(dataset_name: str, repo_root: str | Path | None = None) -> pd.DataFrame:
-    spec = get_dataset_spec(dataset_name, repo_root=repo_root)
+def _download_prices_for_dataset(dataset_name: str | DatasetSpec, repo_root: str | Path | None = None) -> pd.DataFrame:
+    spec = resolve_dataset_spec(dataset_name, repo_root=repo_root)
+    dataset_id = dataset_identifier(spec, repo_root=repo_root)
     if not spec.tickers:
-        raise ValueError(
-            f"dataset preset '{dataset_name}' has no tickers yet; fill the ticker list in configs/datasets.toml first"
-        )
+        if spec.kind == "preset":
+            raise ValueError(f"dataset preset '{dataset_id}' has no tickers yet; fill the ticker list in configs/datasets.toml first")
+        raise ValueError(f"custom dataset '{dataset_id}' has no tickers configured")
     frames: list[pd.DataFrame] = []
     start = spec.start_date.isoformat()
     end = (spec.end_date + timedelta(days=1)).isoformat()
@@ -64,21 +66,22 @@ def _download_prices_for_dataset(dataset_name: str, repo_root: str | Path | None
             continue
         frames.append(_normalize_downloaded_frame(downloaded, ticker))
     if not frames:
-        raise ValueError(f"no data could be downloaded for dataset '{dataset_name}'")
+        raise ValueError(f"no data could be downloaded for dataset '{dataset_id}'")
     combined = pd.concat(frames, ignore_index=True)
-    return validate_prices_frame(combined, dataset_name=dataset_name, repo_root=repo_root)
+    return validate_prices_frame(combined, dataset_name=spec, repo_root=repo_root)
 
 
 def load_prices(
-    dataset_name: str,
+    dataset_name: str | DatasetSpec,
     refresh: bool = False,
     *,
     repo_root: str | Path | None = None,
 ) -> pd.DataFrame:
+    spec = resolve_dataset_spec(dataset_name, repo_root=repo_root)
     cache_path = _cache_path(dataset_name, repo_root=repo_root)
     cache_path.parent.mkdir(parents=True, exist_ok=True)
     if cache_path.exists() and not refresh:
-        return validate_prices_frame(pd.read_parquet(cache_path), dataset_name=dataset_name, repo_root=repo_root)
-    prices = _download_prices_for_dataset(dataset_name, repo_root=repo_root)
+        return validate_prices_frame(pd.read_parquet(cache_path), dataset_name=spec, repo_root=repo_root)
+    prices = _download_prices_for_dataset(spec, repo_root=repo_root)
     prices.to_parquet(cache_path, index=False)
     return prices

@@ -15,8 +15,8 @@ from typing import Any, Mapping, Sequence
 import mlflow
 import pandas as pd
 
-from .config import load_mlflow_settings
-from .contracts import BacktestResult, PortfolioWeights
+from .config import dataset_identifier, dataset_spec_dict, load_mlflow_settings, resolve_dataset_spec
+from .contracts import BacktestResult, DatasetSpec, PortfolioWeights
 
 
 def _repo_root(repo_root: str | Path | None = None) -> Path:
@@ -96,22 +96,38 @@ def _get_or_create_experiment(experiment_name: str, artifact_root: Path | None) 
 @contextmanager
 def start_run(
     run_name: str,
-    dataset_name: str,
+    dataset_name: str | DatasetSpec,
     tags: dict[str, str] | None = None,
     *,
     repo_root: str | Path = ".",
 ):
     root = _repo_root(repo_root)
+    spec = resolve_dataset_spec(dataset_name, repo_root=root)
+    dataset_id = dataset_identifier(spec, repo_root=root)
     settings = load_mlflow_settings(root)
     layout = init_mlflow(root)
     artifact_root = Path(layout["artifact_root"]) if layout["artifact_root"] else None
     lock = _mlflow_lock(root) if not _is_remote_tracking_uri(layout["tracking_uri"]) else nullcontext()
     with lock:
         mlflow.set_tracking_uri(layout["tracking_uri"])
-        experiment_name = f"{settings.experiment_prefix}_{dataset_name}"
+        experiment_name = f"{settings.experiment_prefix}_{dataset_id}"
         experiment_id = _get_or_create_experiment(experiment_name, artifact_root)
         with mlflow.start_run(experiment_id=experiment_id, run_name=run_name) as run:
-            mlflow.set_tags({"dataset_name": dataset_name, **(tags or {})})
+            merged_tags = {"dataset_name": dataset_id, **(tags or {})}
+            if spec.kind == "custom":
+                merged_tags["dataset_kind"] = "custom"
+            mlflow.set_tags(merged_tags)
+            if spec.kind == "custom":
+                mlflow.log_params(
+                    {
+                        "dataset_kind": spec.kind,
+                        "dataset_benchmark_ticker": spec.benchmark_ticker,
+                        "dataset_start_date": spec.start_date.isoformat(),
+                        "dataset_end_date": spec.end_date.isoformat(),
+                        "dataset_ticker_count": len(spec.tickers),
+                    }
+                )
+                _log_json_artifact(dataset_spec_dict(spec), "dataset_spec.json")
             yield run
 
 
@@ -119,6 +135,13 @@ def _log_dataframe(df: pd.DataFrame, artifact_name: str) -> None:
     with tempfile.TemporaryDirectory() as tmp_dir:
         path = Path(tmp_dir) / artifact_name
         df.to_parquet(path, index=False)
+        mlflow.log_artifact(str(path))
+
+
+def _log_json_artifact(payload: dict[str, Any], artifact_name: str) -> None:
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        path = Path(tmp_dir) / artifact_name
+        path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         mlflow.log_artifact(str(path))
 
 

@@ -3,7 +3,8 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from .config import get_dataset_spec
+from .config import dataset_identifier, resolve_dataset_spec
+from .contracts import DatasetSpec
 from .data import load_prices
 from .features import build_features
 from .portfolio import weights_from_predictions_rank_long_only
@@ -14,7 +15,7 @@ from .validation import validate_weights_frame
 
 def _daily_split_dates(
     prices: pd.DataFrame,
-    dataset_name: str,
+    dataset_name: str | DatasetSpec,
     split: str,
     *,
     repo_root: str | None = None,
@@ -53,17 +54,18 @@ def _inverse_volatility_frame(prices: pd.DataFrame, dates: pd.DatetimeIndex, tic
 
 
 def baseline_weights(
-    dataset_name: str,
+    dataset_name: str | DatasetSpec,
     strategy_name: str,
     split: str = "test",
     *,
     repo_root: str | None = None,
 ) -> PortfolioWeights:
-    spec = get_dataset_spec(dataset_name, repo_root=repo_root)
+    spec = resolve_dataset_spec(dataset_name, repo_root=repo_root)
+    dataset_id = dataset_identifier(spec, repo_root=repo_root)
     if not spec.tickers:
-        raise ValueError(f"dataset preset '{dataset_name}' has no tickers configured")
-    prices = load_prices(dataset_name, repo_root=repo_root)
-    dates = _daily_split_dates(prices, dataset_name, split, repo_root=repo_root)
+        raise ValueError(f"dataset '{dataset_id}' has no tickers configured")
+    prices = load_prices(spec, repo_root=repo_root)
+    dates = _daily_split_dates(prices, spec, split, repo_root=repo_root)
     tickers = list(spec.tickers)
 
     if strategy_name == "equal_weight":
@@ -78,12 +80,12 @@ def baseline_weights(
         signal_frame["horizon"] = 20
         weights_obj = weights_from_predictions_rank_long_only(
             signal_frame.loc[:, ["date", "ticker", "horizon", "expected_return"]],
-            dataset_name=dataset_name,
+            dataset_name=dataset_id,
             strategy_name="momentum_20d",
         )
         weights = weights_obj.weights
     else:
         raise KeyError(f"unknown baseline strategy '{strategy_name}'")
 
-    weights = validate_weights_frame(weights, dataset_name=dataset_name, repo_root=repo_root)
-    return PortfolioWeights(weights=weights, dataset_name=dataset_name, strategy_name=strategy_name, metadata={"split": split})
+    weights = validate_weights_frame(weights, dataset_name=spec, repo_root=repo_root)
+    return PortfolioWeights(weights=weights, dataset_name=dataset_id, strategy_name=strategy_name, metadata={"split": split})

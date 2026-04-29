@@ -63,6 +63,7 @@ Starter datasets included:
 
 - `notebooks/templates/starter_forecast_model.ipynb`
 - `notebooks/templates/mlp_end_to_end_workflow.ipynb`
+- `notebooks/templates/custom_dataset_workflow.ipynb`
 - `notebooks/templates/feature_playground.ipynb`
 - `notebooks/templates/direct_weights_workflow.ipynb`
 - `notebooks/templates/baseline_compare.ipynb`

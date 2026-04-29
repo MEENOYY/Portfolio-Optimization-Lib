@@ -8,8 +8,8 @@ import bt
 import pandas as pd
 
 from .baselines import baseline_weights
-from .config import get_dataset_spec
-from .contracts import BacktestResult, PortfolioWeights
+from .config import dataset_identifier, resolve_dataset_spec
+from .contracts import BacktestResult, DatasetSpec, PortfolioWeights
 from .data import load_prices
 from .portfolio import (
     weights_from_predictions_rank_long_only,
@@ -94,20 +94,21 @@ def _compute_turnover(weights: pd.DataFrame) -> pd.Series:
 
 
 def backtest_weights(
-    dataset_name: str,
+    dataset_name: str | DatasetSpec,
     portfolio_weights: PortfolioWeights,
     benchmark: str = "SPY",
     *,
     repo_root: str | Path | None = None,
 ) -> BacktestResult:
-    spec = get_dataset_spec(dataset_name, repo_root=repo_root)
-    prices = load_prices(dataset_name, repo_root=repo_root)
+    spec = resolve_dataset_spec(dataset_name, repo_root=repo_root)
+    dataset_id = dataset_identifier(spec, repo_root=repo_root)
+    prices = load_prices(spec, repo_root=repo_root)
     price_wide = _pivot_prices(prices)
     strategy_tickers = [ticker for ticker in spec.tickers if ticker in portfolio_weights.weights.columns and ticker in price_wide.columns]
     if not strategy_tickers:
         raise ValueError("portfolio weights do not overlap the dataset universe")
 
-    raw_weights = validate_weights_frame(portfolio_weights.weights, dataset_name=dataset_name, repo_root=repo_root)
+    raw_weights = validate_weights_frame(portfolio_weights.weights, dataset_name=spec, repo_root=repo_root)
     aligned_weights = _align_weights_to_prices(raw_weights.loc[:, strategy_tickers], price_wide.index)
     aligned_weights = _mask_unavailable_weights(aligned_weights, price_wide.loc[:, strategy_tickers])
 
@@ -135,7 +136,7 @@ def backtest_weights(
             )
         )
 
-    equal_benchmark = baseline_weights(dataset_name, "equal_weight", repo_root=repo_root).weights
+    equal_benchmark = baseline_weights(spec, "equal_weight", repo_root=repo_root).weights
     equal_benchmark = _align_weights_to_prices(equal_benchmark.loc[:, strategy_tickers], price_wide.index)
     equal_benchmark = _mask_unavailable_weights(equal_benchmark, price_wide.loc[:, strategy_tickers])
     equal_benchmark_name = "equal_weight" if portfolio_weights.strategy_name != "equal_weight" else "equal_weight_benchmark"
@@ -160,7 +161,7 @@ def backtest_weights(
 
     backtest_result = BacktestResult(
         strategy_name=portfolio_weights.strategy_name,
-        dataset_name=dataset_name,
+        dataset_name=dataset_id,
         weights=aligned_weights,
         nav=nav,
         returns=returns,
@@ -173,21 +174,22 @@ def backtest_weights(
 
 
 def backtest_predictions(
-    dataset_name: str,
+    dataset_name: str | DatasetSpec,
     predictions: pd.DataFrame,
     builder: str = "top_k_equal",
     *,
     repo_root: str | Path | None = None,
     **builder_kwargs,
 ) -> BacktestResult:
-    validated = validate_prediction_frame(predictions, dataset_name=dataset_name, repo_root=repo_root)
+    spec = resolve_dataset_spec(dataset_name, repo_root=repo_root)
+    validated = validate_prediction_frame(predictions, dataset_name=spec, repo_root=repo_root)
     if builder == "top_k_equal":
         k = int(builder_kwargs.get("k", 5))
-        weights = weights_from_predictions_top_k_equal(validated, k=k, dataset_name=dataset_name)
+        weights = weights_from_predictions_top_k_equal(validated, k=k, dataset_name=spec)
     elif builder == "rank_long_only":
-        weights = weights_from_predictions_rank_long_only(validated, dataset_name=dataset_name)
+        weights = weights_from_predictions_rank_long_only(validated, dataset_name=spec)
     elif builder == "risk_adjusted":
-        weights = weights_from_predictions_risk_adjusted(validated, dataset_name=dataset_name)
+        weights = weights_from_predictions_risk_adjusted(validated, dataset_name=spec)
     else:
         raise KeyError(f"unknown portfolio builder '{builder}'")
-    return backtest_weights(dataset_name, weights, repo_root=repo_root)
+    return backtest_weights(spec, weights, repo_root=repo_root)

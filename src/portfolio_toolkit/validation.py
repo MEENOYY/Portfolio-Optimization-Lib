@@ -6,7 +6,8 @@ from typing import Iterable
 import numpy as np
 import pandas as pd
 
-from .config import get_dataset_spec
+from .config import dataset_identifier, resolve_dataset_spec
+from .contracts import DatasetSpec
 
 
 PRICE_COLUMNS = ["date", "ticker", "open", "high", "low", "close", "adj_close", "volume"]
@@ -30,7 +31,7 @@ def _ensure_columns(df: pd.DataFrame, required: Iterable[str], label: str) -> No
 
 def validate_prices_frame(
     df: pd.DataFrame,
-    dataset_name: str | None = None,
+    dataset_name: str | DatasetSpec | None = None,
     *,
     repo_root: str | Path | None = None,
 ) -> pd.DataFrame:
@@ -48,11 +49,12 @@ def validate_prices_frame(
     if (validated["high"] < validated["low"]).any():
         raise ValueError("prices frame contains rows where high < low")
     if dataset_name is not None:
-        spec = get_dataset_spec(dataset_name, repo_root=repo_root)
+        spec = resolve_dataset_spec(dataset_name, repo_root=repo_root)
+        dataset_id = dataset_identifier(spec, repo_root=repo_root)
         allowed = set(spec.all_tickers)
         unexpected = sorted(set(validated["ticker"]) - allowed)
         if unexpected:
-            raise ValueError(f"prices frame contains unexpected tickers for {dataset_name}: {unexpected}")
+            raise ValueError(f"prices frame contains unexpected tickers for {dataset_id}: {unexpected}")
         if spec.benchmark_ticker not in set(validated["ticker"]):
             raise ValueError(f"prices frame must include benchmark ticker {spec.benchmark_ticker}")
     validated = validated.sort_values(["ticker", "date"]).reset_index(drop=True)
@@ -78,7 +80,7 @@ def validate_feature_frame(df: pd.DataFrame) -> pd.DataFrame:
 
 def validate_prediction_frame(
     df: pd.DataFrame,
-    dataset_name: str | None = None,
+    dataset_name: str | DatasetSpec | None = None,
     horizon: int | None = None,
     *,
     repo_root: str | Path | None = None,
@@ -101,17 +103,18 @@ def validate_prediction_frame(
     if horizon is not None and set(validated["horizon"].unique()) != {int(horizon)}:
         raise ValueError(f"prediction frame must contain exactly horizon={horizon}")
     if dataset_name is not None:
-        spec = get_dataset_spec(dataset_name, repo_root=repo_root)
+        spec = resolve_dataset_spec(dataset_name, repo_root=repo_root)
+        dataset_id = dataset_identifier(spec, repo_root=repo_root)
         allowed = set(spec.tickers)
         unexpected = sorted(set(validated["ticker"]) - allowed)
         if unexpected:
-            raise ValueError(f"prediction frame contains unexpected tickers for {dataset_name}: {unexpected}")
+            raise ValueError(f"prediction frame contains unexpected tickers for {dataset_id}: {unexpected}")
     return validated.sort_values(["date", "ticker", "horizon"]).reset_index(drop=True)
 
 
 def validate_weights_frame(
     df: pd.DataFrame,
-    dataset_name: str | None = None,
+    dataset_name: str | DatasetSpec | None = None,
     *,
     repo_root: str | Path | None = None,
 ) -> pd.DataFrame:
@@ -131,8 +134,9 @@ def validate_weights_frame(
     if not np.allclose(row_sums.to_numpy(dtype=float), np.ones(len(row_sums)), atol=1e-6):
         raise ValueError("each weights row must sum to 1.0")
     if dataset_name is not None:
-        spec = get_dataset_spec(dataset_name, repo_root=repo_root)
+        spec = resolve_dataset_spec(dataset_name, repo_root=repo_root)
+        dataset_id = dataset_identifier(spec, repo_root=repo_root)
         unexpected = sorted(set(numeric.columns) - set(spec.tickers))
         if unexpected:
-            raise ValueError(f"weights frame contains unexpected tickers for {dataset_name}: {unexpected}")
+            raise ValueError(f"weights frame contains unexpected tickers for {dataset_id}: {unexpected}")
     return numeric
