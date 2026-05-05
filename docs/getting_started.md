@@ -93,6 +93,8 @@ Use one of the committed notebook templates:
   Start here if your model predicts returns, alpha, volatility, or uncertainty.
 - `mlp_end_to_end_workflow.ipynb`
   Start here if you want a heavily commented end-to-end example of a neural-style forecasting workflow using the shared toolkit.
+- `custom_dataset_workflow.ipynb`
+  Start here if you want to create a dataset at runtime with `custom_dataset(...)` instead of editing `configs/datasets.toml`.
 - `feature_playground.ipynb`
   Start here if you want to explore the built-in feature set or create your own features.
 - `direct_weights_workflow.ipynb`

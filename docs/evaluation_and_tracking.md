@@ -300,6 +300,7 @@ log_model_submission(
     feature_names=all_feature_names,
     target="forward_alpha_5d_vs_spy",
     horizon=5,
+    rebalance_frequency="weekly",
     preprocessing={
         "scaler": "train_mean_std",
         "train_means": train_means.to_dict(),
@@ -315,6 +316,8 @@ This creates a standardized MLflow artifact directory:
 - `model_submission/manifest.json`
 - `model_submission/artifacts/<model files>`
 - `model_submission/source/<optional notebooks or code files>`
+
+The manifest also records `rebalance_frequency`, such as `daily`, `weekly`, or `monthly`. The backtest still uses the dates in `weights.parquet`; this field makes the intended cadence visible in MLflow.
 
 ## 10. Model Submission Requirements
 
@@ -435,6 +438,7 @@ The manifest should make inference reconstruction unambiguous:
 - `model_family`: framework family, such as `torch`, `sklearn`, `xgboost`, `lightgbm`, `catboost`, or `other`
 - `target`: training target, such as `forward_return_5d`
 - `horizon`: prediction horizon
+- `rebalance_frequency`: intended portfolio rebalance cadence, such as `daily`, `weekly`, or `monthly`
 - `feature_names`: exact ordered model input columns
 - `preprocessing`: scaler or normalization information
 - `model_config`: architecture and hyperparameter details needed to recreate the model
@@ -460,6 +464,7 @@ with start_run(...):
         feature_names=feature_names,
         target=target_col,
         horizon=horizon,
+        rebalance_frequency=rebalance_frequency,
         preprocessing={"scaler": "none"},
         model_config={
             "portfolio_builder": "weights_from_predictions_rank_long_only",

@@ -23,10 +23,16 @@ class DatasetSpec:
     test_end: date = date(2025, 12, 31)
     cost_bps: float = 10.0
     default_benchmark: str = "SPY"
+    kind: str = "preset"
+    dataset_id: str = ""
+
+    @property
+    def identifier(self) -> str:
+        return self.dataset_id or self.name
 
     @property
     def all_tickers(self) -> list[str]:
-        tickers = [ticker.upper() for ticker in self.tickers]
+        tickers = list(dict.fromkeys(ticker.upper() for ticker in self.tickers))
         benchmark = self.benchmark_ticker.upper()
         return tickers if benchmark in tickers else [*tickers, benchmark]
 

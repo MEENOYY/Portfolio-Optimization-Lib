@@ -243,11 +243,13 @@ What happens inside the backtest layer:
 
 - prices are pivoted to wide format from `adj_close`
 - weights are aligned to the next available trading day
-- `bt` runs a daily rebalance using `WeighTarget` and `Rebalance`
+- `bt` runs on daily prices and rebalances only on dates present in your weights index
 - flat commissions are applied from the dataset preset
 - benchmark return series are produced
 - turnover is computed
 - summary metrics are computed
+
+Your rebalance frequency is therefore controlled by the dates you score and convert into weights. Daily prediction dates create daily target weights; weekly prediction dates create weekly target weights.
 
 ## Step 8. Write Reports And Artifacts
 
@@ -304,7 +306,8 @@ Recommended params and tags to log from notebooks:
 - horizon
 - feature names
 - portfolio builder name
-- top-k or rebalance assumptions
+- rebalance frequency, such as `daily`, `weekly`, or `monthly`
+- top-k or allocation assumptions
 
 ## Step 10. Compare Against Baselines
 

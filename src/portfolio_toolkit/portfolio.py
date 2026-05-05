@@ -3,6 +3,8 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
+from .config import dataset_identifier
+from .contracts import DatasetSpec
 from .contracts import PortfolioWeights
 from .validation import validate_prediction_frame, validate_weights_frame
 
@@ -18,7 +20,7 @@ def weights_from_predictions_top_k_equal(
     k: int,
     score_column: str = "expected_return",
     *,
-    dataset_name: str = "unknown",
+    dataset_name: str | DatasetSpec = "unknown",
     strategy_name: str | None = None,
 ) -> PortfolioWeights:
     if k <= 0:
@@ -35,14 +37,18 @@ def weights_from_predictions_top_k_equal(
         value = 1.0 / len(chosen)
         weights.loc[pd.Timestamp(date_value), chosen["ticker"]] = value
     weights = validate_weights_frame(weights)
-    return PortfolioWeights(weights=weights, dataset_name=dataset_name, strategy_name=strategy_name or f"top_{k}_equal")
+    return PortfolioWeights(
+        weights=weights,
+        dataset_name=dataset_identifier(dataset_name),
+        strategy_name=strategy_name or f"top_{k}_equal",
+    )
 
 
 def weights_from_predictions_rank_long_only(
     predictions: pd.DataFrame,
     score_column: str = "expected_return",
     *,
-    dataset_name: str = "unknown",
+    dataset_name: str | DatasetSpec = "unknown",
     strategy_name: str = "rank_long_only",
 ) -> PortfolioWeights:
     validated = validate_prediction_frame(predictions)
@@ -56,7 +62,7 @@ def weights_from_predictions_rank_long_only(
         raw_scores = raw_scores / raw_scores.sum()
         weights.loc[pd.Timestamp(date_value), raw_scores.index] = raw_scores.to_numpy(dtype=float)
     weights = validate_weights_frame(weights)
-    return PortfolioWeights(weights=weights, dataset_name=dataset_name, strategy_name=strategy_name)
+    return PortfolioWeights(weights=weights, dataset_name=dataset_identifier(dataset_name), strategy_name=strategy_name)
 
 
 def weights_from_predictions_risk_adjusted(
@@ -64,7 +70,7 @@ def weights_from_predictions_risk_adjusted(
     return_col: str = "expected_return",
     vol_col: str = "expected_volatility",
     *,
-    dataset_name: str = "unknown",
+    dataset_name: str | DatasetSpec = "unknown",
     strategy_name: str = "risk_adjusted",
 ) -> PortfolioWeights:
     validated = validate_prediction_frame(predictions)
@@ -87,4 +93,4 @@ def weights_from_predictions_risk_adjusted(
         scores = scores / scores.sum()
         weights.loc[pd.Timestamp(date_value), scores.index] = scores.to_numpy(dtype=float)
     weights = validate_weights_frame(weights)
-    return PortfolioWeights(weights=weights, dataset_name=dataset_name, strategy_name=strategy_name)
+    return PortfolioWeights(weights=weights, dataset_name=dataset_identifier(dataset_name), strategy_name=strategy_name)

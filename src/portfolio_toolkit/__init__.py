@@ -1,6 +1,6 @@
 from .backtest import backtest_predictions, backtest_weights
 from .baselines import baseline_weights
-from .config import get_dataset_spec, load_dataset_specs, load_mlflow_settings
+from .config import custom_dataset, get_dataset_spec, load_dataset_specs, load_mlflow_settings
 from .contracts import BacktestResult, DatasetSpec, MlflowSettings, PortfolioWeights
 from .data import load_prices
 from .features import (
@@ -38,6 +38,7 @@ __all__ = [
     "baseline_weights",
     "build_features",
     "build_metrics",
+    "custom_dataset",
     "get_dataset_spec",
     "init_mlflow",
     "list_features",

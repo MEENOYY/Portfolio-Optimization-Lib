@@ -4,15 +4,16 @@ from pathlib import Path
 
 import pandas as pd
 
-from .config import get_dataset_spec
+from .config import resolve_dataset_spec
+from .contracts import DatasetSpec
 
 
 def split_dates(
-    dataset_name: str,
+    dataset_name: str | DatasetSpec,
     *,
     repo_root: str | Path | None = None,
 ) -> dict[str, tuple[pd.Timestamp, pd.Timestamp]]:
-    spec = get_dataset_spec(dataset_name, repo_root=repo_root)
+    spec = resolve_dataset_spec(dataset_name, repo_root=repo_root)
     return {
         "train": (pd.Timestamp(spec.train_start), pd.Timestamp(spec.train_end)),
         "val": (pd.Timestamp(spec.val_start), pd.Timestamp(spec.val_end)),
@@ -22,7 +23,7 @@ def split_dates(
 
 def slice_split(
     frame: pd.DataFrame,
-    dataset_name: str,
+    dataset_name: str | DatasetSpec,
     split_name: str,
     *,
     repo_root: str | Path | None = None,

@@ -15,8 +15,8 @@ from typing import Any, Mapping, Sequence
 import mlflow
 import pandas as pd
 
-from .config import load_mlflow_settings
-from .contracts import BacktestResult, PortfolioWeights
+from .config import dataset_identifier, dataset_spec_dict, load_mlflow_settings, resolve_dataset_spec
+from .contracts import BacktestResult, DatasetSpec, PortfolioWeights
 
 
 def _repo_root(repo_root: str | Path | None = None) -> Path:
@@ -96,22 +96,38 @@ def _get_or_create_experiment(experiment_name: str, artifact_root: Path | None) 
 @contextmanager
 def start_run(
     run_name: str,
-    dataset_name: str,
+    dataset_name: str | DatasetSpec,
     tags: dict[str, str] | None = None,
     *,
     repo_root: str | Path = ".",
 ):
     root = _repo_root(repo_root)
+    spec = resolve_dataset_spec(dataset_name, repo_root=root)
+    dataset_id = dataset_identifier(spec, repo_root=root)
     settings = load_mlflow_settings(root)
     layout = init_mlflow(root)
     artifact_root = Path(layout["artifact_root"]) if layout["artifact_root"] else None
     lock = _mlflow_lock(root) if not _is_remote_tracking_uri(layout["tracking_uri"]) else nullcontext()
     with lock:
         mlflow.set_tracking_uri(layout["tracking_uri"])
-        experiment_name = f"{settings.experiment_prefix}_{dataset_name}"
+        experiment_name = f"{settings.experiment_prefix}_{dataset_id}"
         experiment_id = _get_or_create_experiment(experiment_name, artifact_root)
         with mlflow.start_run(experiment_id=experiment_id, run_name=run_name) as run:
-            mlflow.set_tags({"dataset_name": dataset_name, **(tags or {})})
+            merged_tags = {"dataset_name": dataset_id, **(tags or {})}
+            if spec.kind == "custom":
+                merged_tags["dataset_kind"] = "custom"
+            mlflow.set_tags(merged_tags)
+            if spec.kind == "custom":
+                mlflow.log_params(
+                    {
+                        "dataset_kind": spec.kind,
+                        "dataset_benchmark_ticker": spec.benchmark_ticker,
+                        "dataset_start_date": spec.start_date.isoformat(),
+                        "dataset_end_date": spec.end_date.isoformat(),
+                        "dataset_ticker_count": len(spec.tickers),
+                    }
+                )
+                _log_json_artifact(dataset_spec_dict(spec), "dataset_spec.json")
             yield run
 
 
@@ -119,6 +135,13 @@ def _log_dataframe(df: pd.DataFrame, artifact_name: str) -> None:
     with tempfile.TemporaryDirectory() as tmp_dir:
         path = Path(tmp_dir) / artifact_name
         df.to_parquet(path, index=False)
+        mlflow.log_artifact(str(path))
+
+
+def _log_json_artifact(payload: dict[str, Any], artifact_name: str) -> None:
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        path = Path(tmp_dir) / artifact_name
+        path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         mlflow.log_artifact(str(path))
 
 
@@ -205,6 +228,15 @@ def _validate_artifact_dir(artifact_dir: str) -> str:
     return cleaned
 
 
+def _normalize_rebalance_frequency(rebalance_frequency: str | None) -> str | None:
+    if rebalance_frequency is None:
+        return None
+    cleaned = str(rebalance_frequency).strip()
+    if not cleaned:
+        raise ValueError("rebalance_frequency cannot be empty")
+    return cleaned
+
+
 def _copy_unique(source: Path, destination_dir: Path) -> Path:
     destination_dir.mkdir(parents=True, exist_ok=True)
     candidate = destination_dir / source.name
@@ -227,6 +259,7 @@ def log_model_submission(
     feature_names: Sequence[str],
     target: str,
     horizon: int,
+    rebalance_frequency: str | None = None,
     preprocessing: Mapping[str, Any] | None = None,
     model_config: Mapping[str, Any] | None = None,
     source_files: Sequence[str | Path] | None = None,
@@ -247,6 +280,7 @@ def log_model_submission(
         raise ValueError("feature_names cannot be empty")
     if int(horizon) <= 0:
         raise ValueError("horizon must be positive")
+    cleaned_rebalance_frequency = _normalize_rebalance_frequency(rebalance_frequency)
     cleaned_artifact_dir = _validate_artifact_dir(artifact_dir)
 
     manifest: dict[str, Any] = {
@@ -254,6 +288,7 @@ def log_model_submission(
         "model_family": str(model_family),
         "target": str(target),
         "horizon": int(horizon),
+        "rebalance_frequency": cleaned_rebalance_frequency,
         "feature_names": ordered_features,
         "preprocessing": dict(preprocessing or {}),
         "model_config": dict(model_config or {}),
@@ -293,6 +328,8 @@ def log_model_submission(
                 "submission_feature_count": len(ordered_features),
             }
         )
+        if cleaned_rebalance_frequency is not None:
+            mlflow.log_param("submission_rebalance_frequency", cleaned_rebalance_frequency)
         mlflow.set_tag("has_model_submission", "true")
         mlflow.log_artifacts(str(bundle_dir), artifact_path=cleaned_artifact_dir)
 

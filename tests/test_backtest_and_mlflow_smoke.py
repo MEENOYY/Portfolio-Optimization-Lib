@@ -88,6 +88,7 @@ def test_log_model_submission_writes_manifest_and_artifacts(repo_root, tmp_path)
             feature_names=["momentum_20d", "vol_20d"],
             target="forward_alpha_5d_vs_spy",
             horizon=5,
+            rebalance_frequency="weekly",
             preprocessing={
                 "scaler": "train_mean_std",
                 "train_means": {"momentum_20d": 0.1, "vol_20d": 0.2},
@@ -111,11 +112,13 @@ def test_log_model_submission_writes_manifest_and_artifacts(repo_root, tmp_path)
     assert stored_manifest["model_family"] == "torch"
     assert stored_manifest["target"] == "forward_alpha_5d_vs_spy"
     assert stored_manifest["horizon"] == 5
+    assert stored_manifest["rebalance_frequency"] == "weekly"
     assert stored_manifest["feature_names"] == ["momentum_20d", "vol_20d"]
 
     mlflow_run = client.get_run(run_id)
     assert mlflow_run.data.params["submission_model_name"] == "dummy_torch_model"
     assert mlflow_run.data.params["submission_feature_count"] == "2"
+    assert mlflow_run.data.params["submission_rebalance_frequency"] == "weekly"
     assert mlflow_run.data.tags["has_model_submission"] == "true"
 
 
@@ -143,6 +146,22 @@ def test_log_model_submission_rejects_empty_features(tmp_path):
             feature_names=[],
             target="forward_return_5d",
             horizon=5,
+        )
+
+
+def test_log_model_submission_rejects_empty_rebalance_frequency(tmp_path):
+    model_path = tmp_path / "model.txt"
+    model_path.write_text("model", encoding="utf-8")
+
+    with pytest.raises(ValueError):
+        log_model_submission(
+            [model_path],
+            model_name="bad_rebalance",
+            model_family="other",
+            feature_names=["momentum_20d"],
+            target="forward_return_5d",
+            horizon=5,
+            rebalance_frequency=" ",
         )
 
 

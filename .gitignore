@@ -18,3 +18,7 @@ runs/
 **/runs/
 reports/
 mlflow/
+notebooks/templates
+!notebooks/templates/
+!notebooks/templates/*.ipynb
+configs/

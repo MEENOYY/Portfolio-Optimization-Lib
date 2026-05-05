@@ -278,6 +278,7 @@ How to choose:
 
 - keep one notebook focused on one modeling idea
 - save the exact feature list used in that notebook
+- choose and log the rebalance frequency used to turn predictions into weights
 - validate predictions or weights before backtesting
 - compare against at least one shared baseline
 - log the run to MLflow with enough tags to understand it later
@@ -292,6 +293,8 @@ predictions["expected_alpha"] = test_alpha
 predictions["expected_volatility"] = test_vol
 predictions["uncertainty"] = test_uncertainty
 ```
+
+For formal runs, filter the prediction dates to the intended rebalance cadence before converting predictions into weights. For example, weekly scoring should produce one prediction row per ticker per weekly rebalance date, not one row per ticker per trading day.
 
 ## 13. Minimal Direct Weights Example
 
