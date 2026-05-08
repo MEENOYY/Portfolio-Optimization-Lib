@@ -107,8 +107,8 @@ tickers = [
   "ADI",
   "INTU",
   "CSCO",
-  "SPY",
 ]
+
 benchmark_ticker = "SPY"
 start_date = "2014-01-02"
 end_date = "2025-12-31"
@@ -162,3 +162,66 @@ test_start = "2022-01-03"
 test_end = "2025-12-31"
 cost_bps = 10.0
 default_benchmark = "SPY"
+
+[secret_set_1]
+name = "XLE_test"
+tickers = [
+  "XOM",
+"CVX",
+"COP",
+"SLB",
+"WMB",
+"VLO",
+"EOG",
+"BKR",
+"MPC",
+"PSX",
+"KMI",
+"OKE",
+"TRGP",
+"OXY",
+"FANG",
+"EQT",
+"HAL",
+"DVN",
+"CTRA",
+"TPL",
+"EXE",
+"APA"
+]
+
+benchmark_ticker = "XLE"
+start_date = "2014-01-02"
+end_date = "2025-12-31"
+train_start = "2014-01-02"
+train_end = "2019-12-31"
+val_start = "2020-01-02"
+val_end = "2021-12-31"
+test_start = "2022-01-03"
+test_end = "2025-12-31"
+cost_bps = 10.0
+default_benchmark = "XLE"
+
+[secret_set_2]
+name = "XBI"
+
+tickers = [
+  "APLS", "RVMD", "TVTX", "TGTX", "ARWR", "ALKS", "TWST", "MDGL", "BEAM", "CELC", "MIRM", "CYTK", "EXEL", "PRAX", "NBIX", "KRYS", "APGE", "CRSP", "UTHR", "NTRA", "SRRK", "PTGX", "RYTM", "KYMR", "INCY", "NUVL", "IONS", "SMMT", "CGON", "PTCT", "IBRX", "BIIB", "HALO", "COGT", "PCVX", "INSM", "ARQT", "ROIV", "BBIO", "VCYT", "RARE", "ALNY", "SLNO", "GILD", "REGN", "SYRE", "BMRN", "VKTX", "ABBV", "AMGN", "MRNA", "VRTX", "IMVT", "ACAD", "SRPT", "VERA", "IRON", "CPRX", "IMNM", "GRAL", "DYN", "KOD", "BCRX", "DNLI", "RXRX", "RCUS", "ARDX", "MLYS", "ORKA", "DNTH", "AGIO", "NTLA", "ERAS", "ADMA", "SNDX", "NRIX", "IDYA", "TNGX", "VRDN", "NVAX", "CLDX", "INBX", "VCEL", "CAPR", "GLUE", "MNKD", "TSHA", "QURE", "BHVN", "OLMA", "STOK", "RLAY", "PVLA", "ANAB", "IOVA", "CRVS", "CDNA", "KALV", "ABSI", "PGEN", "GERN", "VIR", "SANA", "SLS", "KURA", "TYRA", "ANNX", "JANX", "AVBP", "ORIC", "SPRY", "IRWD", "CGEM", "RIGL", "CTMX", "XNCR", "ZBIO", "SVRA", "SION", "PURR", "BCAX", "VOR", "EBS", "RGNX", "FDMT", "ALT", "PRME", "VNDA", "VSTM", "ALLO", "LXEO", "PRTA", "RCKT", "ABUS", "AKBA", "MYGN", "AVXL", "MDXG", "IVVD", "OCGN", "REPL"
+]
+
+benchmark_ticker = "XBI"
+default_benchmark = "XBI"
+
+start_date = "2014-01-02"
+end_date = "2025-12-31"
+
+train_start = "2014-01-02"
+train_end = "2018-12-31"
+
+val_start = "2019-01-02"
+val_end = "2020-12-31"
+
+test_start = "2022-01-04"
+test_end = "2025-12-31"
+
+cost_bps = 10.0
